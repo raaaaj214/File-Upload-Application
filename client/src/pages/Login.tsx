@@ -1,0 +1,61 @@
+import { useForm, SubmitHandler } from "react-hook-form";
+import { userApi } from "../redux/api";
+import { Inputs } from "../types/types";
+import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { userExists } from "../redux/userSlice";
+
+const Login = () => {
+  const { register, handleSubmit, formState: { errors } } = useForm<Inputs>();
+  const [loginUser, { isLoading }] = userApi.useLoginUserMutation();
+  const { refetch } = userApi.useGetUserQuery(); // Skip the initial fetch
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const onSubmit: SubmitHandler<Inputs> = async (data) => {
+    const res = await loginUser(data);
+    if (res.data?.success) {
+      toast.success(res.data.message);
+      // Refetch user data after successful login
+      const {data} = await refetch();
+
+      if (data?.success) {
+        console.log("success",data)
+        if(data.user)
+         dispatch(userExists(data.user));
+        navigate("/");
+      } else {
+        console.log(data)
+        toast.error("Failed to fetch user data");
+      }
+    } else {
+      toast.error(res.data?.message || "Something went wrong");
+    }
+  };
+
+  return (
+    <div className='font-satoshi flex justify-center items-center w-full'>
+      <div className="h-screen w-1/2 bg-blue-600 rounded-tr-[100px] rounded-br-[100px] justify-center items-center flex-col gap-5 hidden md:flex">
+        <h1 className="text-white font-bold text-3xl">File Upload</h1>
+        <p className="text-white font-medium">An application where you can share and store files</p>
+      </div>
+      <div className="h-screen w-full p-5 md:w-1/2 text-black flex justify-center items-center flex-col gap-5">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex justify-center items-center flex-col text-lg w-full md:w-4/5 lg:w-1/2 gap-8">
+          <input {...register("username", { required: "Username is required" })} placeholder="username" className="border-b border-black focus:outline-none w-full rounded-md px-2" />
+          <input type="password" {...register("password", {
+            required: "Password is required",
+            minLength: { value: 8, message: "Password must have at least 8 characters" }
+          })} placeholder="password" className="border-b border-black focus:outline-none w-full rounded-md px-2" />
+          {errors.username && <p className="text-red-500 text-sm">{errors.username.message}</p>}
+          {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
+          <button disabled={isLoading} type="submit" className="disabled:bg-gray-400 bg-blue-500 px-10 py-1 font-bold text-white rounded-md text-lg">Login</button>
+        </form>
+        <h5 className="text-sm font-bold">-OR-</h5>
+        <p>Don't have an account? <a href="/signup" className="text-blue-500 font-bold">Register</a></p>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
